@@ -150,4 +150,11 @@ const ZGetJobResponse = z.object({
 });
 
 const inputsStore = new InputsStore();
-export { inputsStore, type FileInProgress, type TInput };
+export {
+  inputsStore,
+  ZGetJobResponse,
+  ZJob,
+  type FileInProgress,
+  type TInput,
+  type TJob,
+};

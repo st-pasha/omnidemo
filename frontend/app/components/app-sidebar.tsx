@@ -15,8 +15,8 @@ import {
 } from "~/components/ui/sidebar";
 
 const navigation_data = [
-  { label: "Insights", route: "/insights", icon: NotebookPen },
-  { label: "Inputs", route: "/inputs", icon: FolderTree },
+  { label: "Notes", route: "/insights", icon: NotebookPen },
+  { label: "Input files", route: "/inputs", icon: FolderTree },
   { label: "Forecasts", route: "/forecasts", icon: TrendingUpDown },
 ];
 
@@ -26,8 +26,11 @@ const AppSidebar = () => {
   return (
     <Sidebar side="left" collapsible="icon" variant="sidebar">
       <SidebarHeader>
-        <div className="text-xl font-bold -m-2 mb-2 px-4 py-1 bg-stone-300 
-            border-b border-stone-500">CPG</div>
+        <div
+          className="text-xl font-bold -m-2 mb-2 px-4 py-1 bg-stone-300 
+            border-b border-stone-500">
+          CPG
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -36,8 +39,7 @@ const AppSidebar = () => {
               {navigation_data.map((item) => (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton
-                    isActive={location.pathname.startsWith(item.route)}
-                  >
+                    isActive={location.pathname.startsWith(item.route)}>
                     <Link to={item.route} className="flex w-full items-center">
                       <item.icon className="mr-2 h-5 w-5" />
                       {open && <span>{item.label}</span>}
