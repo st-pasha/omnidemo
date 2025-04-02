@@ -26,6 +26,19 @@ class InsightsStore {
     this._insights.push(data.insight);
   };
 
+  updateMessage = async (id: number, message: string): Promise<void> => {
+    const response = await api.post("/insights/update-message", {
+      message_id: id,
+      message,
+      username: useCurrentUser().username,
+    });
+    const data = await response.json(ZUpdateMessageResponse);
+    const index = this._insights!.findIndex((i) => i.id === id);
+    if (index !== -1) {
+      this._insights![index] = data.insight;
+    }
+  };
+
   async _fetchInsights(): Promise<void> {
     const response = await api.get("/insights/list-insights");
     const data = await response.json(ZListInsightsResponse);
@@ -50,6 +63,9 @@ const ZListInsightsResponse = z.object({
 const ZSendMessageResponse = z.object({
   insight: ZInsight,
 });
+const ZUpdateMessageResponse = z.object({
+  insight: ZInsight,
+});
 
 const insightsStore = new InsightsStore();
-export { insightsStore };
+export { insightsStore, type TInsight };
