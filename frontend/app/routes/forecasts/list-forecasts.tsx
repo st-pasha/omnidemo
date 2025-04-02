@@ -1,6 +1,7 @@
 import { observer } from "mobx-react-lite";
 import { useState } from "react";
 import { Spinner } from "~/components/custom/spinner";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -13,6 +14,7 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Progress } from "~/components/ui/progress";
+import { useCurrentUser } from "~/state/current-user";
 import { forecastStore } from "~/state/forecasts-store";
 
 const ListForecastsPage = observer(() => {
@@ -76,19 +78,32 @@ const StartForecastButton = () => {
 const ForecastWidget = observer(() => {
   const forecast = forecastStore.forecast;
   const job = forecastStore.job;
+  const canPublish =
+    job?.status === "completed" &&
+    forecast?.status === "draft" &&
+    useCurrentUser().username === "admin";
+  const publish = () => {
+    forecastStore.publishForecast();
+  };
 
   return (
-    <div className="border rounded-lg px-4 py-3">
-      <div className="font-semibold">Forecast</div>
-      {job?.status === "failed" && (
-        <div className="text-red-500">
-          Error: {job.error} (progress: {job.progress})
+    <div className="border rounded-lg px-4 py-3 flex items-center">
+      <div className="grow">
+        <div className="flex gap-2">
+          <div className="font-semibold">Forecast</div>
+          <Badge className="h-4">{forecast?.status}</Badge>
         </div>
-      )}
-      {job?.status === "running" && (
-        <Progress value={job.progress * 100} className="my-2" />
-      )}
-      <div className="text-sm text-stone-400 ml-6">{forecast?.file_id}</div>
+        {job?.status === "failed" && (
+          <div className="text-red-500">
+            Error: {job.error} (progress: {job.progress})
+          </div>
+        )}
+        {job?.status === "running" && (
+          <Progress value={job.progress * 100} className="my-2" />
+        )}
+        <div className="text-sm text-stone-400 ml-6">{forecast?.file_id}</div>
+      </div>
+      <div>{canPublish && <Button onClick={publish}>Publish</Button>}</div>
     </div>
   );
 });

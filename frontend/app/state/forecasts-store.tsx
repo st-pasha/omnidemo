@@ -37,6 +37,16 @@ class ForecastsStore {
     });
   }
 
+  async publishForecast(): Promise<void> {
+    const response = await api.post("/forecasts/publish-forecast", {
+      id: this._forecast?.id,
+    });
+    const data = await response.json(ZPublishForecastResponse);
+    runInAction(() => {
+      this._forecast = data.forecast;
+    });
+  }
+
   async _fetchForecast(): Promise<void> {
     const response = await api.get("/forecasts/get-latest-forecast");
     const data = await response.json(ZGetLatestForecastResponse);
@@ -87,6 +97,10 @@ const ZGetLatestForecastResponse = z.object({
 const ZStartForecastResponse = z.object({
   forecast: ZForecast,
   job: ZJob,
+});
+
+const ZPublishForecastResponse = z.object({
+  forecast: ZForecast,
 });
 
 const forecastStore = new ForecastsStore();
