@@ -9,11 +9,11 @@ class CurrentUser {
   constructor() {
     this.uid = 0;
     makeAutoObservable(this);
-    // makePersistable(this, {
-    //   name: "current-user",
-    //   properties: ["username", "uid", "authKey"],
-    //   storage: window.localStorage,
-    // });
+    makePersistable(this, {
+      name: "current-user",
+      properties: ["username", "uid", "authKey"],
+      storage: window.localStorage,
+    });
   }
 
   logIn(username: string, uid: number, token: string) {
@@ -28,8 +28,7 @@ class CurrentUser {
   }
 
   get isLoaded() {
-    return true;
-    // return isHydrated(this);
+    return isHydrated(this);
   }
 
   get isLoggedIn() {
@@ -57,3 +56,5 @@ export async function useCurrentUserA(): Promise<CurrentUser> {
   }
   return currentUser;
 }
+
+export { currentUser };
