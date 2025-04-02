@@ -1,9 +1,11 @@
 import { set } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useState } from "react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Spinner } from "~/components/custom/spinner";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { ChartContainer, type ChartConfig } from "~/components/ui/chart";
 import {
   Dialog,
   DialogClose,
@@ -130,7 +132,7 @@ const ChartsSection = observer(() => {
             No charts created
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 mt-4">
+          <div className="flex flex-wrap gap-4 mt-4">
             {charts.map((chart) => (
               <ChartWidget key={chart.chartKey} chart={chart} />
             ))}
@@ -247,10 +249,33 @@ const AddChartButton = () => {
 };
 
 const ChartWidget = observer(({ chart }: { chart: Chart }) => {
+  if (chart.isLoading) {
+    return (
+      <div className="border rounded-lg p-4 w-96 min-h-64 flex items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+  const fields = chart.fields;
+  const chartData = chart.chartData.map((row: any) => ({ x: row[0], y: row[1] }));
+
+  const chartConfig: ChartConfig = {
+    x: {
+      label: fields[0],
+      color: "hsl(var(--chart-1))",
+    },
+  };
+
   return (
     <div className="border rounded-lg p-4 w-96 min-h-64">
-      {chart.isLoading && <Spinner />}
-      Chart
+      <ChartContainer config={chartConfig}>
+        <BarChart accessibilityLayer data={chartData}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey="x" tickLine={false} tickMargin={10} axisLine={false} />
+          <YAxis dataKey="y" tickLine={true} />
+          <Bar dataKey="y" fill="var(--color-desktop)" radius={4} />
+        </BarChart>
+      </ChartContainer>
     </div>
   );
 });

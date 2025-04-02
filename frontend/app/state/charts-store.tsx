@@ -1,4 +1,4 @@
-import { makeAutoObservable, runInAction } from "mobx";
+import { makeAutoObservable, reaction, runInAction } from "mobx";
 import { z } from "zod";
 import { api } from "~/lib/api";
 import { useCurrentUser } from "./current-user";
@@ -51,25 +51,47 @@ class Chart {
   private _dataLoading: boolean = true;
   chartKey: string;
   chartData: any;
+  forecastId: number | null;
 
   constructor(data: TUserChart) {
     this.chartKey = data.chart_key;
     this.chartData = null;
+    this.forecastId = forecastStore.forecast?.id ?? null;
     makeAutoObservable(this);
     this._fetchData();
+
+    // Use reaction to refetch data when forecastId changes
+    reaction(
+      () => forecastStore.forecast?.id,
+      (newForecastId) => {
+        this.forecastId = newForecastId ?? null;
+        this.chartData = null;
+        this._dataLoading = true;
+        this._fetchData();
+      },
+      { fireImmediately: false },
+    );
   }
 
   get isLoading(): boolean {
     return this._dataLoading;
   }
 
+  get fields(): string[] {
+    const fields = this.chartKey.split(",");
+    const y = fields[fields.length - 1];
+    if (y.includes("/")) {
+      fields[fields.length - 1] = y.split("/")[1];
+    }
+    return fields;
+  }
+
   async _fetchData() {
-    const forecastId = forecastStore.forecast?.id;
-    console.log("fetching chart data", forecastId, this.chartKey);
-    if (!forecastId) return;
+    console.log("fetching chart data", this.forecastId, this.chartKey);
+    if (!this.forecastId) return;
     const response = await api.get("/forecasts/get-chart", {
       chart_key: this.chartKey,
-      forecast_id: forecastId,
+      forecast_id: this.forecastId,
     });
     const data = await response.json(ZGetChartResponse);
     runInAction(() => {

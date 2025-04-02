@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 from collections import defaultdict
 import csv
 import io
@@ -75,10 +76,17 @@ async def get_chart(
         )
 
     # Find the name of the file that has the full forecast data
-    response = db.table("forecasts").select("file_id").eq("id", forecast_id).execute()
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Forecast not found")
-    forecast_file_id = response.data[0]["file_id"]
+    # If the forecast is not ready yet, then wait for it to be ready
+    while True:
+        response = (
+            db.table("forecasts").select("file_id").eq("id", forecast_id).execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Forecast not found")
+        forecast_file_id = response.data[0]["file_id"]
+        if forecast_file_id:
+            break
+        await asyncio.sleep(1)
 
     # Load the data from the Supabase storage
     print(f"Load forecast data from storage `{forecast_file_id}`")
