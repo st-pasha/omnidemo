@@ -1,12 +1,11 @@
 import uvicorn
 
-from omnidemo.settings import settings
-
 
 def main() -> None:
-    """Entrypoint of the application."""
+    from omnidemo.settings import settings
+
     uvicorn.run(
-        "omnidemo.web.application:get_app",
+        "omnidemo.app:get_app",
         workers=settings.workers_count,
         host=settings.host,
         port=settings.port,
