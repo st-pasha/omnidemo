@@ -8,7 +8,7 @@ import { Input } from "~/components/ui/input";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { cn } from "~/lib/utils";
 import { useCurrentUser } from "~/state/current-user";
-import { insightsStore, type TInsight } from "~/state/insightsStore";
+import { insightsStore, type TInsight } from "~/state/insights-store";
 
 //
 const ListInsightsPage = observer(() => {

@@ -23,6 +23,5 @@ async def list_insights(request: Request) -> ListInsightsResponse:
     if db is None:
         raise HTTPException(status_code=500, detail="Database not connected")
     data = db.table("insights").select("*").execute()
-    print(data.data)
 
     return ListInsightsResponse(insights=data.data)

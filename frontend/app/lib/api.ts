@@ -18,7 +18,7 @@ class Api {
 
   async get(
     endpoint: string,
-    searchParams?: Record<string, any>
+    searchParams?: Record<string, any>,
   ): Promise<ApiResponse> {
     const url = this._makeUrl(endpoint, searchParams);
     console.log(`API request: GET ${url}`);
@@ -29,11 +29,15 @@ class Api {
   async post(endpoint: string, body?: object): Promise<ApiResponse> {
     const url = this._makeUrl(endpoint);
     console.log(`API request: POST ${url}, body:`, body);
-    const request = new Request(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const init: RequestInit = { method: "POST" };
+    if (body instanceof FormData) {
+      // init.headers = { "Content-Type": "multipart/form-data" };
+      init.body = body;
+    } else {
+      init.headers = { "Content-Type": "application/json" };
+      init.body = JSON.stringify(body);
+    }
+    const request = new Request(url, init);
     return this._fetchRequest(request);
   }
 
