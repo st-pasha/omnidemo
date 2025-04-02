@@ -2,6 +2,7 @@ import { makeAutoObservable, runInAction } from "mobx";
 import { z } from "zod";
 import { api } from "~/lib/api";
 import { useCurrentUser } from "./current-user";
+import { forecastStore } from "./forecasts-store";
 
 class ChartsStore {
   private _charts: Chart[] | null;
@@ -21,6 +22,20 @@ class ChartsStore {
     return this._charts ?? [];
   }
 
+  async createChart(x: string, y: string, agg: string): Promise<void> {
+    const key = `${x},${agg}/${y}`;
+    const username = useCurrentUser().username;
+    const response = await api.post("/forecasts/add-user-chart", {
+      chart_key: key,
+      username,
+    });
+    const data = await response.json(ZAddUserChartResponse);
+    const chart = new Chart(data.chart);
+    runInAction(() => {
+      this._charts = [...(this._charts ?? []), chart];
+    });
+  }
+
   async _fetchCharts(): Promise<void> {
     const username = useCurrentUser().username;
     const response = await api.get("/forecasts/get-user-charts", { username });
@@ -35,9 +50,11 @@ class ChartsStore {
 class Chart {
   private _dataLoading: boolean = true;
   chartKey: string;
+  chartData: any;
 
   constructor(data: TUserChart) {
     this.chartKey = data.chart_key;
+    this.chartData = null;
     makeAutoObservable(this);
     this._fetchData();
   }
@@ -47,13 +64,17 @@ class Chart {
   }
 
   async _fetchData() {
+    const forecastId = forecastStore.forecast?.id;
+    console.log("fetching chart data", forecastId, this.chartKey);
+    if (!forecastId) return;
     const response = await api.get("/forecasts/get-chart", {
-      key: this.chartKey,
-      forecast_id: "",
+      chart_key: this.chartKey,
+      forecast_id: forecastId,
     });
     const data = await response.json(ZGetChartResponse);
     runInAction(() => {
       this._dataLoading = false;
+      this.chartData = data.chart.data;
     });
   }
 }
@@ -69,7 +90,7 @@ type TUserChart = z.infer<typeof ZUserChart>;
 const ZChart = z.object({
   id: z.number(),
   chart_key: z.string(),
-  forecast_id: z.string(),
+  forecast_id: z.number().int(),
   data: z.any(),
 });
 type TChart = z.infer<typeof ZChart>;
@@ -82,5 +103,9 @@ const ZGetChartResponse = z.object({
   chart: ZChart,
 });
 
+const ZAddUserChartResponse = z.object({
+  chart: ZUserChart,
+});
+
 const chartsStore = new ChartsStore();
-export { chartsStore, type TUserChart };
+export { chartsStore, type Chart, type TUserChart };

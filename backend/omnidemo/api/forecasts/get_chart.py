@@ -85,10 +85,11 @@ async def get_chart(
     file_content = db.storage.from_("uploads").download(forecast_file_id)
     csv_file = io.StringIO(file_content.decode("utf-8"))
     reader = csv.DictReader(csv_file)
-    data = [row.get(header) for header in fields for row in reader]
+    data = [[row.get(header) for header in fields] for row in reader]
 
     # Aggregate the y-data by groups in x-data.
     print("Aggregate the data")
+    print("  data: ", data[:5])
     aggregated_data = defaultdict(list)
     for row in data:
         x_value = tuple(row[:-1])
@@ -104,6 +105,7 @@ async def get_chart(
     }[agg]
     data = [[*k, agg_fn(v)] for k, v in aggregated_data.items()]
     print(f"  after aggregation, the data has {len(data)} rows")
+    print("  data: ", data[:5])
 
     # Save the chart data
     print("Save the chart data")
