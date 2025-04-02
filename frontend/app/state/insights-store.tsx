@@ -5,10 +5,15 @@ import { useCurrentUser } from "~/state/current-user";
 
 class InsightsStore {
   private _insights: TInsight[] | null;
+  private _loading: boolean = true;
 
   constructor() {
     this._insights = null;
     makeAutoObservable(this);
+  }
+
+  get loading(): boolean {
+    return this._loading;
   }
 
   get insights(): TInsight[] {
@@ -43,7 +48,10 @@ class InsightsStore {
     const response = await api.get("/insights/list-insights");
     const data = await response.json(ZListInsightsResponse);
     runInAction(() => {
-      this._insights = data.insights;
+      this._insights = data.insights.sort((a, b) =>
+        a.created_at.localeCompare(b.created_at),
+      );
+      this._loading = false;
     });
   }
 }

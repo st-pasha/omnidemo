@@ -18,9 +18,13 @@ const ListInsightsPage = observer(() => {
     <div className="h-full max-h-dvh flex flex-col relative">
       <div className="grow shrink max-h-[calc(100dvh-3.5rem)]">
         <ScrollArea className="flex flex-col gap-4 overflow-hidden pt-4">
-          {insights.map((insight) => (
-            <MessageWidget key={insight.id} insight={insight} />
-          ))}
+          {insightsStore.loading ? (
+            <Spinner />
+          ) : (
+            insights.map((insight) => (
+              <MessageWidget key={insight.id} insight={insight} />
+            ))
+          )}
         </ScrollArea>
       </div>
       <div className="h-[3.5rem] z-100 bg-white">
