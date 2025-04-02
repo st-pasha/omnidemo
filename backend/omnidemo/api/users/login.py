@@ -6,6 +6,17 @@ from typing import Literal
 from omnidemo.api.users import router
 
 
+class UsersLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class UsersLoginResponse(BaseModel):
+    access_token: str
+    username: str
+    permission: Literal["normal", "admin"]
+
+
 @router.post("/users/login")
 async def login(body: UsersLoginRequest) -> UsersLoginResponse:
     # DEMO ONLY
@@ -22,14 +33,3 @@ async def login(body: UsersLoginRequest) -> UsersLoginResponse:
         username=body.username,
         permission="admin" if body.username == "boss" else "normal",
     )
-
-
-class UsersLoginRequest(BaseModel):
-    username: str
-    password: str
-
-
-class UsersLoginResponse(BaseModel):
-    access_token: str
-    username: str
-    permission: Literal["normal", "admin"]
