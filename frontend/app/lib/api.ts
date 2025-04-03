@@ -20,14 +20,14 @@ class Api {
     endpoint: string,
     searchParams?: Record<string, any>,
   ): Promise<ApiResponse> {
-    const url = this._makeUrl(endpoint, searchParams);
+    const url = this.makeUrl(endpoint, searchParams);
     console.log(`API request: GET ${url}`);
     const request = new Request(url, { method: "GET" });
     return this._fetchRequest(request);
   }
 
   async post(endpoint: string, body?: object): Promise<ApiResponse> {
-    const url = this._makeUrl(endpoint);
+    const url = this.makeUrl(endpoint);
     console.log(`API request: POST ${url}, body:`, body);
     const init: RequestInit = { method: "POST" };
     if (body instanceof FormData) {
@@ -66,7 +66,7 @@ class Api {
     return new ApiResponse(response);
   }
 
-  private _makeUrl(endpoint: string, searchParams?: Record<string, string>) {
+  makeUrl(endpoint: string, searchParams?: Record<string, string>) {
     const url = new URL("/api" + endpoint, this._prefix);
     if (searchParams) {
       url.search = new URLSearchParams(searchParams).toString();

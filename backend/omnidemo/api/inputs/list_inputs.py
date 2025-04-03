@@ -2,7 +2,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from omnidemo.api.insights import router
+from omnidemo.api.inputs import router
 from fastapi import Request
 
 

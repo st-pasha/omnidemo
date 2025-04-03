@@ -1,6 +1,6 @@
-import { set } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useState } from "react";
+import { Link } from "react-router";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Spinner } from "~/components/custom/spinner";
 import { Badge } from "~/components/ui/badge";
@@ -25,17 +25,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { api } from "~/lib/api";
 import { chartsStore, type Chart } from "~/state/charts-store";
 import { useCurrentUser } from "~/state/current-user";
 import { forecastStore } from "~/state/forecasts-store";
 
 const ListForecastsPage = observer(() => {
   const forecast = forecastStore.forecast;
+  const canForecast = forecast?.status === "draft";
+
   return (
     <div>
       <div className="flex items-center mb-2 ">
         <h1 className="text-xl font-bold grow">Forecasts</h1>
-        <StartForecastButton />
+        {canForecast && <StartForecastButton />}
       </div>
 
       {forecastStore.loading ? (
@@ -90,6 +93,12 @@ const StartForecastButton = () => {
 
 const ForecastWidget = observer(() => {
   const forecast = forecastStore.forecast;
+  const fileId = forecast?.file_id;
+  const fileUrl =
+    fileId &&
+    api.makeUrl("/inputs/download-file", {
+      file_name: fileId,
+    });
   const job = forecastStore.job;
   const canPublish =
     job?.status === "completed" &&
@@ -114,7 +123,13 @@ const ForecastWidget = observer(() => {
         {job?.status === "running" && (
           <Progress value={job.progress * 100} className="my-2" />
         )}
-        <div className="text-sm text-stone-400 ml-6">{forecast?.file_id}</div>
+        {fileUrl && (
+          <div className="text-sm text-stone-400 ml-6">
+            <a href={fileUrl} className="cursor-pointer hover:underline">
+              {fileId}
+            </a>
+          </div>
+        )}
       </div>
       <div>{canPublish && <Button onClick={publish}>Publish</Button>}</div>
     </div>

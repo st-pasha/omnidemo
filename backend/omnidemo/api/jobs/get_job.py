@@ -3,7 +3,7 @@ from typing import Literal
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from omnidemo.api.insights import router
+from omnidemo.api.jobs import router
 from fastapi import Request
 
 
