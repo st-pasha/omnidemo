@@ -1,9 +1,8 @@
 import uvicorn
+from omnidemo.settings import settings
 
 
 def main() -> None:
-    from omnidemo.settings import settings
-
     uvicorn.run(
         "omnidemo.app:get_app",
         workers=settings.workers_count,

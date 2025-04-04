@@ -19,8 +19,6 @@ pydantic-settings = "^2.7.0"
 yarl = "^1.18.3"
 ujson = "^5.10.0"
 httptools = "^0.6.4"
-pymongo = "^4.10.1"
-supabase = "^2.15.0"
 python-multipart = "^0.0.20"
 
 

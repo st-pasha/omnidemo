@@ -1,11 +1,8 @@
 from __future__ import annotations
 import os
 from pathlib import Path
-from tempfile import gettempdir
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-TEMP_DIR = Path(gettempdir())
 
 
 def read_env(root: Path, key: str) -> str:
@@ -47,10 +44,10 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    project_root: Path = Path(__file__).parent.parent.parent
-    sqlite_db: Path = project_root / "backend" / "db" / "omnidemo.db"
-    sqlite_sql: Path = project_root / "backend" / "db" / "initial.sql"
-    storage_dir: Path = project_root / "backend" / "db" / "storage"
+    project_root: Path = Path(__file__).parent.parent
+    sqlite_db: Path = project_root / "db" / "omnidemo.db"
+    sqlite_sql: Path = project_root / "db" / "initial.sql"
+    storage_dir: Path = project_root / "db" / "storage"
 
 
 settings = Settings()
