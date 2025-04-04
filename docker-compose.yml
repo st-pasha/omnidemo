@@ -1,9 +1,12 @@
-version: "3.8"
 services:
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        API_URL: "http://localhost:8000/"
+    env_file:
+      - ./frontend/.env.development
     ports:
       - "3000:3000"
     depends_on:

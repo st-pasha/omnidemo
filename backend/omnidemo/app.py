@@ -27,6 +27,7 @@ def get_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[
             "http://localhost:5173",
+            "http://localhost:3000",
             "https://omnidemo-frontend.fly.dev",
         ],
         allow_credentials=True,

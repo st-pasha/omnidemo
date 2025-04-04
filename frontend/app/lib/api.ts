@@ -8,6 +8,7 @@ class Api {
 
   constructor() {
     this._prefix = import.meta.env.VITE_API_URL || "";
+    console.log("API prefix URL: ", this._prefix);
     if (this._prefix.endsWith("/")) {
       this._prefix = this._prefix.slice(0, -1);
     }

@@ -8,6 +8,8 @@ primary_region = 'sjc'
 
 [build]
   dockerfile = 'Dockerfile'
+  [build.args]
+    API_URL = "https://omnidemo-backend.fly.dev/" 
 
 [http_service]
   internal_port = 3000

@@ -7,7 +7,7 @@
 --   constraint forecasts_pkey primary key (id)
 -- ) TABLESPACE pg_default;
 
-CREATE TABLE forecasts (
+CREATE TABLE IF NOT EXISTS forecasts (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     file_id TEXT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -25,7 +25,7 @@ CREATE TABLE forecasts (
 --   constraint charts_forecast_id_fkey foreign KEY (forecast_id) references forecasts (id)
 -- ) TABLESPACE pg_default;
 
-CREATE TABLE charts (
+CREATE TABLE IF NOT EXISTS charts (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     forecast_id INTEGER NOT NULL,
     chart_key TEXT NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE charts (
 --   constraint inputs_pkey primary key (id)
 -- ) TABLESPACE pg_default;
 
-CREATE TABLE inputs (
+CREATE TABLE IF NOT EXISTS inputs (
     id TEXT PRIMARY KEY NOT NULL,
     file_name TEXT NOT NULL,
     stored_name TEXT NOT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE inputs (
 --   constraint insights_pkey primary key (id)
 -- ) TABLESPACE pg_default;
 
-CREATE TABLE insights (
+CREATE TABLE IF NOT EXISTS insights (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     message TEXT NULL,
     username TEXT NULL,
@@ -77,7 +77,7 @@ CREATE TABLE insights (
 --   constraint jobs_pkey primary key (id)
 -- ) TABLESPACE pg_default;
 
-CREATE TABLE jobs (
+CREATE TABLE IF NOT EXISTS jobs (
     id TEXT PRIMARY KEY NOT NULL,
     progress REAL NOT NULL DEFAULT 0,
     status TEXT NOT NULL,
@@ -93,7 +93,7 @@ CREATE TABLE jobs (
 --   constraint user_charts_pkey primary key (id)
 -- ) TABLESPACE pg_default;
 
-CREATE TABLE user_charts (
+CREATE TABLE IF NOT EXISTS user_charts (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     username TEXT NOT NULL,
     chart_key TEXT NOT NULL,
