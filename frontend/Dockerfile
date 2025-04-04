@@ -12,7 +12,6 @@ FROM node:20-alpine AS build-env
 ARG API_URL
 ENV VITE_API_URL=$API_URL
 COPY . /app/
-RUN rm /app/.env.*
 COPY --from=development-dependencies-env /app/node_modules /app/node_modules
 WORKDIR /app
 RUN npm run build
