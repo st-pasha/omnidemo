@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from omnidemo.api.forecasts import router
 from omnidemo.api.forecasts.get_user_charts import UserChart
+from omnidemo.db import SqliteDatabase
 
 
 class AddUserChartRequest(BaseModel):
@@ -19,17 +20,14 @@ class AddUserChartResponse(BaseModel):
 async def add_user_chart(
     body: AddUserChartRequest, request: Request
 ) -> AddUserChartResponse:
-    db = request.app.state.db
-    assert db is not None, "Database connection is not established"
+    db = SqliteDatabase.from_app(request.app)
 
-    response = (
-        db.table("user_charts")
-        .insert({
-            "username": body.username,
-            "chart_key": body.chart_key,
-        })
-        .execute()
+    data = db.insert_row(
+        """
+        INSERT INTO user_charts (username, chart_key)
+        VALUES (?, ?)
+        """,
+        (body.username, body.chart_key),
     )
-    assert len(response.data) == 1, "Failed to insert user chart"
 
-    return AddUserChartResponse(chart=UserChart.model_validate(response.data[0]))
+    return AddUserChartResponse(chart=UserChart.model_validate(data))

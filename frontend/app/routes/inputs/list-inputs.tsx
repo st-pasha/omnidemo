@@ -15,6 +15,7 @@ import {
 import { Input } from "~/components/ui/input";
 import { Progress } from "~/components/ui/progress";
 import { Separator } from "~/components/ui/separator";
+import { api } from "~/lib/api";
 import { datetimeToHumanString } from "~/lib/date-utils";
 import { inputsStore, type FileInProgress, type TInput } from "~/state/inputs-store";
 
@@ -88,15 +89,24 @@ const FileEntry = ({ fileName, inputs }: { fileName: string; inputs: TInput[] })
             </tr>
           </thead>
           <tbody>
-            {inputs.map((input) => (
-              <tr key={input.id}>
-                <td className="text-sm text-zinc-500 pr-4 font-mono">{input.id}</td>
-                <td className="text-sm text-zinc-500 pr-4">{input.username}</td>
-                <td className="text-sm text-zinc-500 pr-4">
-                  {datetimeToHumanString(new Date(input.created_at))}
-                </td>
-              </tr>
-            ))}
+            {inputs.map((input) => {
+              const url = api.makeUrl("/inputs/download-file", {
+                id: input.id,
+              });
+              return (
+                <tr key={input.id}>
+                  <td className="text-sm text-zinc-500 pr-4 font-mono">
+                    <a href={url} className="hover:underline hover:text-black">
+                      {input.id}
+                    </a>
+                  </td>
+                  <td className="text-sm text-zinc-500 pr-4">{input.username}</td>
+                  <td className="text-sm text-zinc-500 pr-4">
+                    {datetimeToHumanString(new Date(input.created_at))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

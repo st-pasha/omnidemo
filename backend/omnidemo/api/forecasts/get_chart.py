@@ -1,14 +1,15 @@
 from __future__ import annotations
 import asyncio
-from collections import defaultdict
 import csv
 import io
-from typing import Any
+from collections import defaultdict
+import json
+from fastapi import HTTPException, Request
 from pydantic import BaseModel
+from typing import Any, Callable, cast
 
 from omnidemo.api.forecasts import router
-from fastapi import HTTPException, Request
-import supabase
+from omnidemo.db import SqliteDatabase
 
 
 class Chart(BaseModel):
@@ -37,26 +38,22 @@ async def get_chart(
     Returns the list of chart descriptions for the given user.
     The charts themselves are not returned, only the metadata.
     """
-    db: supabase.Client = request.app.state.db
-    assert db is not None, "Database connection is not established"
+    db = SqliteDatabase.from_app(request.app)
 
     # TODO: prevent two users from requesting the same chart at the same time
     # Also, should we return a job here?
 
     # See if the chart is already in the database, and if so return it
-    print("Check if the chart is in the DB")
-    response = (
-        db.table("charts")
-        .select("*")
-        .eq("chart_key", chart_key)
-        .eq("forecast_id", forecast_id)
-        .execute()
+    rows = db.fetch_rows(
+        """
+        SELECT * FROM charts WHERE chart_key = ? AND forecast_id = ?
+        """,
+        (chart_key, forecast_id),
     )
-    if response.data:
-        return GetChartResponse(chart=Chart.model_validate(response.data[0]))
+    if rows:
+        return GetChartResponse(chart=Chart.model_validate(rows[0]))
 
     # Otherwise, we need to compute the chart's data
-    print("Parse the chart key")
     fields = chart_key.split(",")
     agg = "sum"
     if "/" in fields[-1]:
@@ -68,7 +65,6 @@ async def get_chart(
             detail=f"Unsupported aggregation function: {agg}",
         )
 
-    print(f"  fields: {fields}, agg = {agg}")
     if len(fields) < 2:
         raise HTTPException(
             status_code=400,
@@ -78,59 +74,48 @@ async def get_chart(
     # Find the name of the file that has the full forecast data
     # If the forecast is not ready yet, then wait for it to be ready
     while True:
-        response = (
-            db.table("forecasts").select("file_id").eq("id", forecast_id).execute()
+        row = db.fetch_one(
+            "SELECT file_id FROM forecasts WHERE id = ?",
+            (forecast_id,),
         )
-        if not response.data:
-            raise HTTPException(status_code=404, detail="Forecast not found")
-        forecast_file_id = response.data[0]["file_id"]
+        forecast_file_id = cast(str, row["file_id"])
         if forecast_file_id:
             break
         await asyncio.sleep(1)
 
     # Load the data from the Supabase storage
-    print(f"Load forecast data from storage `{forecast_file_id}`")
-    file_content = db.storage.from_("uploads").download(forecast_file_id)
-    csv_file = io.StringIO(file_content.decode("utf-8"))
+    file_content = (db.storage / forecast_file_id).read_text()
+    csv_file = io.StringIO(file_content)
     reader = csv.DictReader(csv_file)
     data = [[row.get(header) for header in fields] for row in reader]
 
     # Aggregate the y-data by groups in x-data.
-    print("Aggregate the data")
-    print("  data: ", data[:5])
-    aggregated_data = defaultdict(list)
+    aggregated_data: dict[tuple[Any, ...], list[str]] = defaultdict(list)
     for row in data:
         x_value = tuple(row[:-1])
         y_value = row[-1]
         if y_value:
             aggregated_data[x_value].append(y_value)
-    agg_fn = {
+    agg_fn: Callable[[list[str]], float] = {
         "sum": agg_sum,
         "avg": agg_avg,
         "min": agg_min,
         "max": agg_max,
         "count": agg_count,
     }[agg]
-    data = [[*k, agg_fn(v)] for k, v in aggregated_data.items()]
-    print(f"  after aggregation, the data has {len(data)} rows")
-    print("  data: ", data[:5])
+    agg_data: list[list[Any]] = [[*k, agg_fn(v)] for k, v in aggregated_data.items()]
 
     # Save the chart data
-    print("Save the chart data")
-    response = (
-        db.table("charts")
-        .insert({
-            "forecast_id": forecast_id,
-            "chart_key": chart_key,
-            "data": data,
-        })
-        .execute()
+    row = db.insert_row(
+        """
+        INSERT INTO charts (forecast_id, chart_key, data)
+        VALUES (?, ?, ?)
+        """,
+        (forecast_id, chart_key, json.dumps(agg_data)),
     )
-    assert len(response.data) == 1
 
     # Return the chart to the user
-    print("Done")
-    chart = Chart.model_validate(response.data[0])
+    chart = Chart.model_validate(row)
     return GetChartResponse(chart=chart)
 
 
@@ -142,7 +127,7 @@ def agg_avg(data: list[str]) -> float:
     return agg_sum(data) / len(data)
 
 
-def agg_count(data: list[str]) -> int:
+def agg_count(data: list[str]) -> float:
     return len(data)
 
 

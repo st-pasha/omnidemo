@@ -3,14 +3,14 @@ import asyncio
 import csv
 import io
 import random
-import time
-from omnidemo.api.jobs.get_job import Job
-import supabase
+from typing import cast
 from fastapi import BackgroundTasks, HTTPException, Request
-from omnidemo.api.forecasts.get_latest_forecast import Forecast
 from pydantic import BaseModel
 
 from omnidemo.api.forecasts import router
+from omnidemo.api.forecasts.get_latest_forecast import Forecast
+from omnidemo.api.jobs.get_job import Job
+from omnidemo.db import SqliteDatabase
 
 
 class StartForecastRequest(BaseModel):
@@ -26,7 +26,8 @@ class StartForecastResponse(BaseModel):
 async def start_forecast(
     background_tasks: BackgroundTasks, request: Request
 ) -> StartForecastResponse:
-    db = request.app.state.db
+    db = SqliteDatabase.from_app(request.app)
+
     # TODO: Check if there is already a forecast in progress
     # TODO: Also check if there is already a forecast from the latest
     #       version of the input file.
@@ -35,19 +36,21 @@ async def start_forecast(
     pass
 
     # First create a job to track the progress of the forecast
-    response = db.table("jobs").insert({"status": "running"}).execute()
-    assert len(response.data) == 1
-    job = Job.model_validate(response.data[0])
+    job_id = db.generate_uuid()
+    db.execute(
+        "INSERT INTO jobs (id, status) VALUES (?, ?)",
+        (job_id, "running"),
+    )
+    row = db.fetch_one("SELECT * FROM jobs WHERE id = ?", (job_id,))
+    job = Job.model_validate(row)
 
     # Also create a tentative forecast entry, so that people can see
     # that a forecast is in progress
-    response = (
-        db.table("forecasts")
-        .insert({"file_id": None, "job_id": job.id, "status": "draft"})
-        .execute()
+    row = db.insert_row(
+        "INSERT INTO forecasts (file_id, job_id, status) VALUES (?, ?, ?)",
+        (None, job.id, "draft"),
     )
-    assert len(response.data) == 1
-    forecast = Forecast.model_validate(response.data[0])
+    forecast = Forecast.model_validate(row)
 
     # Run the forecast in the background
     background_tasks.add_task(run_forecast, db, job.id, forecast.id)
@@ -55,12 +58,13 @@ async def start_forecast(
     return StartForecastResponse(forecast=forecast, job=job)
 
 
-async def run_forecast(db: supabase.Client, job_id: str, forecast_id: str):
+async def run_forecast(db: SqliteDatabase, job_id: str, forecast_id: int):
     async def update_job(progress: float):
-        update = {"progress": progress}
-        if progress >= 1.0:
-            update["status"] = "completed"
-        db.table("jobs").update(update).eq("id", job_id).execute()
+        status = "running" if progress < 1.0 else "completed"
+        db.execute(
+            "UPDATE jobs SET progress = ?, status = ? WHERE id = ?",
+            (progress, status, job_id),
+        )
         # Add random delays to make it look like we work really hard
         # Also, at least a 0 delay is needed to allow other threads to
         # proceed
@@ -68,84 +72,59 @@ async def run_forecast(db: supabase.Client, job_id: str, forecast_id: str):
 
     try:
         # Locate the input file for the forecast
-        response = (
-            db.table("inputs")
-            .select("id,stored_name")
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
+        rows = db.fetch_rows(
+            "SELECT stored_name FROM inputs ORDER BY created_at DESC LIMIT 1"
         )
-        if not response.data:
-            raise HTTPException("No input files found")
-        file_id = response.data[0]["id"]
-        storage_id = response.data[0]["stored_name"]
+        if not rows:
+            raise HTTPException(400, "No input files found")
+        storage_id = cast(str, rows[0]["stored_name"])
         await update_job(0.1)
 
         # Collect the notes for the forecast
-        response = (
-            db.table("insights")
-            .select("message")
-            .order("created_at", desc=False)
-            .execute()
+        rows = db.fetch_rows(
+            "SELECT message FROM insights ORDER BY created_at ASC",
         )
-        notes = [row["message"] for row in response.data]
+        notes = [row["message"] for row in rows]
         await update_job(0.2)
 
-        # Download the file from Supabase storage
-        print(f"Downloading `{storage_id}` from Supabase storage")
-        file_content = db.storage.from_("uploads").download(storage_id)
+        # Download the file from the backend storage
+        file_content = (db.storage / storage_id).read_text()
         await update_job(0.4)
 
         # Parse the CSV file
-        print("Parsing the CSV file")
-        csv_file = io.StringIO(file_content.decode("utf-8"))
+        csv_file = io.StringIO(file_content)
         reader = csv.DictReader(csv_file)
         rows = [row for row in reader]
         await update_job(0.5)
 
         # Perform some processing on the parsed data (example)
-        print("Doing predictions")
         FORECAST_FACTOR = 3 if notes else 2
-        out_rows = []
+        out_rows: list[list[str]] = []
         for row in rows:
             forecast = float(row["forecast"]) * FORECAST_FACTOR
-            out_rows.append([
-                row["sku_id"],
-                row["facility_id"],
-                row["product_category"],
-                row["chain"],
-                row["region"],
-                forecast,
-            ])
+            del row["forecast"]
+            out_rows.append(list(row.values()) + [str(forecast)])
         await update_job(0.6)
 
         # Create a CSV file with the forecast results
-        print("Creating the output CSV file")
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(
-            ["sku_id", "facility_id", "product_category", "chain", "region", "forecast"]
-        )
-        writer.writerows(out_rows)
-        await update_job(0.8)
-
-        # Upload the forecast results to Supabase storage
-        target_name = f"uploads/forecasts/{job_id}"
-        print(f"Uploading the forecast results to `{target_name}`")
-        file_content = output.getvalue().encode("utf-8")
-        db.storage.from_("uploads").upload(target_name, file_content)
-        await update_job(0.95)
+        target = db.storage / f"forecasts~{job_id}.csv"
+        with open(target, "w", newline="", encoding="utf-8") as out:
+            headers = [h for h in rows[0].keys() if h != "forecast"] + ["forecast"]
+            writer = csv.writer(out)
+            writer.writerow(headers)
+            writer.writerows(out_rows)
+            await update_job(0.8)
 
         # Update the entry in the forecasts table
-        print("Updating the forecast entry")
-        db.table("forecasts").update({"file_id": target_name}).eq(
-            "id", forecast_id
-        ).execute()
+        db.execute(
+            """UPDATE forecasts SET file_id = ? WHERE id = ?""",
+            (target.name, forecast_id),
+        )
         await update_job(1.0)
-        print("Done")
 
     except Exception as e:
         # Update the job status to failed
-        db.table("jobs").update({"status": "failed", "error": str(e)}).eq(
-            "id", job_id
-        ).execute()
+        db.execute(
+            "UPDATE jobs SET status = ?, error = ? WHERE id = ?",
+            ("failed", str(e), job_id),
+        )

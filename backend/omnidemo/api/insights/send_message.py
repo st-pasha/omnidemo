@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from omnidemo.api.insights import router
 from omnidemo.api.insights.list_insights import Insight
+from omnidemo.db import SqliteDatabase
 
 
 class SendMessageRequest(BaseModel):
@@ -19,16 +20,13 @@ class SendMessageResponse(BaseModel):
 async def send_message(
     body: SendMessageRequest, request: Request
 ) -> SendMessageResponse:
-    db = request.app.state.db
+    db = SqliteDatabase.from_app(request.app)
 
-    response = (
-        db.table("insights")
-        .insert({
-            "message": body.message.strip(),
-            "username": body.username,
-        })
-        .execute()
+    row = db.insert_row(
+        """
+        INSERT INTO insights (message, username)
+        VALUES (?, ?)
+        """,
+        (body.message.strip(), body.username),
     )
-    assert len(response.data) == 1
-
-    return SendMessageResponse(insight=response.data[0])
+    return SendMessageResponse(insight=Insight.model_validate(row))

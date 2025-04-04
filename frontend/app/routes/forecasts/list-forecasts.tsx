@@ -32,7 +32,7 @@ import { forecastStore } from "~/state/forecasts-store";
 
 const ListForecastsPage = observer(() => {
   const forecast = forecastStore.forecast;
-  const canForecast = forecast?.status === "draft";
+  const canForecast = forecast?.status === "draft" || forecast === null;
 
   return (
     <div>
@@ -94,11 +94,7 @@ const StartForecastButton = () => {
 const ForecastWidget = observer(() => {
   const forecast = forecastStore.forecast;
   const fileId = forecast?.file_id;
-  const fileUrl =
-    fileId &&
-    api.makeUrl("/inputs/download-file", {
-      file_name: fileId,
-    });
+  const fileUrl = fileId && api.makeUrl("/inputs/download-file", { id: fileId });
   const job = forecastStore.job;
   const canPublish =
     job?.status === "completed" &&
@@ -272,7 +268,10 @@ const ChartWidget = observer(({ chart }: { chart: Chart }) => {
     );
   }
   const fields = chart.fields;
-  const chartData = chart.chartData.map((row: any) => ({ x: row[0], y: row[1] }));
+  const chartData = JSON.parse(chart.chartData).map((row: any) => ({
+    x: row[0],
+    y: row[1],
+  }));
 
   const chartConfig: ChartConfig = {
     x: {

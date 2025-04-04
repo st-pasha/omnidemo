@@ -1,9 +1,10 @@
 from __future__ import annotations
-from omnidemo.api.forecasts.get_latest_forecast import Forecast
+from fastapi import Request
 from pydantic import BaseModel
 
 from omnidemo.api.forecasts import router
-from fastapi import HTTPException, Request
+from omnidemo.api.forecasts.get_latest_forecast import Forecast
+from omnidemo.db import SqliteDatabase
 
 
 class PublishForecastRequest(BaseModel):
@@ -19,17 +20,20 @@ async def get_latest_forecast(
     body: PublishForecastRequest, request: Request
 ) -> PublishForecastResponse:
     # TODO: also check that the user has permission for publishing
-    db = request.app.state.db
-    assert db is not None, "Database connection is not established"
+    db = SqliteDatabase.from_app(request.app)
 
-    response = (
-        db.table("forecasts")
-        .update({"status": "published"})
-        .eq("id", body.id)
-        .execute()
+    db.execute(
+        """
+        UPDATE forecasts SET status = 'published' WHERE id = ?
+        """,
+        (body.id,),
     )
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Forecast not found")
-    forecast = Forecast.model_validate(response.data[0])
+    row = db.fetch_one(
+        """
+        SELECT * FROM forecasts WHERE id = ?
+        """,
+        (body.id,),
+    )
+    forecast = Forecast.model_validate(row)
 
     return PublishForecastResponse(forecast=forecast)

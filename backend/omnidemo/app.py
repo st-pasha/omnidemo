@@ -6,7 +6,8 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.responses import UJSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import supabase
+
+from omnidemo.db import SqliteDatabase
 
 
 def get_app() -> FastAPI:
@@ -55,15 +56,6 @@ async def lifespan_setup(
 
     app.middleware_stack = None
     app.middleware_stack = app.build_middleware_stack()
-    app.state.db = get_supabase_client()
+    app.state.db = SqliteDatabase.connect()
 
     yield
-
-
-def get_supabase_client() -> supabase.Client:
-    from omnidemo.settings import settings
-
-    url = settings.supabase_url
-    key = settings.supabase_key
-    client = supabase.create_client(url, key)
-    return client

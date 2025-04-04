@@ -1,3 +1,6 @@
+db/storage
+db/*.db
+
 ### Python template
 
 .idea/

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import HTTPException
+from omnidemo.db import SqliteDatabase
 from pydantic import BaseModel
 
 from omnidemo.api.inputs import router
@@ -20,9 +20,6 @@ class ListInputsResponse(BaseModel):
 
 @router.get("/inputs/list-inputs")
 async def list_inputs(request: Request) -> ListInputsResponse:
-    db = request.app.state.db
-    assert db is not None, "Database connection is not established"
-
-    data = db.table("inputs").select("*").execute()
-
-    return ListInputsResponse(inputs=data.data)
+    db = SqliteDatabase.from_app(request.app)
+    rows = db.fetch_rows("SELECT * FROM inputs")
+    return ListInputsResponse(inputs=[Input.model_validate(row) for row in rows])

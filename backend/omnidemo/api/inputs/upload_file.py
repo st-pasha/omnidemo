@@ -1,7 +1,10 @@
 from __future__ import annotations
+from pathlib import Path
 from pydantic import BaseModel
 from fastapi import Form, Request, UploadFile, File, HTTPException
+
 from omnidemo.api.inputs import router
+from omnidemo.db import SqliteDatabase
 
 
 class UploadFileResponse(BaseModel):
@@ -16,54 +19,47 @@ async def upload_file(
     job_id: str = Form(...),
     file: UploadFile = File(...),
 ) -> UploadFileResponse:
-    db = request.app.state.db
+    db = SqliteDatabase.from_app(request.app)
     if not username:
         raise HTTPException(status_code=400, detail="Username is required")
     if not job_id:
         raise HTTPException(status_code=400, detail="Job ID is required")
 
     # Create an entry in the jobs table
-    print("Creating job entry")
-    db.table("jobs").insert({
-        "id": job_id,
-        "status": "running",
-        "progress": 0,
-    }).execute()
+    db.execute(
+        "INSERT INTO jobs (id, status, progress) VALUES (?, ?, ?)",
+        (job_id, "running", 0),
+    )
 
-    print("Reading file")
+    # Read the file and save it to the local storage directory
+    f = Path(file.filename or "")
+    target = db.storage / f"{f.stem}~{job_id}{'.'.join(f.suffixes)}"
     file_size_total = file.size or 1
-    file_chunks: list[bytes] = []
     file_size_read = 0
-    while chunk := await file.read(1024 * 1024):
-        file_chunks.append(chunk)
-        file_size_read += len(chunk)
-        db.table("jobs").update({
-            "progress": file_size_read / file_size_total,
-        }).eq("id", job_id).execute()
-
-    # Store the file in Supabase storage
-    print("Uploading file into Supabase storage")
-    file_id = job_id
-    file_content = b"".join(file_chunks)
-    target_name = f"uploads/{file.filename}/{file_id}"
-    db.storage.from_("uploads").upload(target_name, file_content)
+    with open(target, "wb") as out:
+        while chunk := await file.read(1024 * 1024):
+            out.write(chunk)
+            file_size_read += len(chunk)
+            db.execute(
+                "UPDATE jobs SET progress = ? WHERE id = ?",
+                (file_size_read / file_size_total, job_id),
+            )
 
     # After uploading, create an entry in the `inputs` table
-    print("Creating inputs entry")
-    db.table("inputs").insert({
-        "id": file_id,
-        "file_name": file.filename,
-        "stored_name": target_name,
-        "username": username,
-        "size": file_size_total,
-    }).execute()
+    db.execute(
+        """
+        INSERT INTO inputs (id, file_name, stored_name, username, size) 
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (job_id, file.filename, target.name, username, file_size_total),
+    )
 
     # Update the job status to completed
-    print("Updating job status to completed")
-    db.table("jobs").update({
-        "status": "completed",
-        "progress": 1,
-    }).eq("id", job_id).execute()
+    db.execute(
+        """
+        UPDATE jobs SET status = ?, progress = ? WHERE id = ?
+        """,
+        ("completed", 1, job_id),
+    )
 
-    print("File upload completed")
-    return UploadFileResponse(file_id=file_id, file_size=file_size_total)
+    return UploadFileResponse(file_id=job_id, file_size=file_size_total)

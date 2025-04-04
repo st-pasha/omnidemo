@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import Literal
-from fastapi import HTTPException
+from fastapi import Request
 from pydantic import BaseModel
+from typing import Literal
 
 from omnidemo.api.jobs import router
-from fastapi import Request
+from omnidemo.db import SqliteDatabase
 
 
 class Job(BaseModel):
@@ -21,11 +21,6 @@ class GetJobResponse(BaseModel):
 
 @router.get("/jobs/get-job")
 async def get_job(id: str, request: Request) -> GetJobResponse:
-    db = request.app.state.db
-    assert db is not None, "Database connection is not established"
-
-    data = db.table("jobs").select("*").eq("id", id).execute()
-    if not data.data:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    return GetJobResponse(job=Job(**data.data[0]))
+    db = SqliteDatabase.from_app(request.app)
+    row = db.fetch_one("SELECT * FROM jobs WHERE id = ?", (id,))
+    return GetJobResponse(job=Job.model_validate(row))

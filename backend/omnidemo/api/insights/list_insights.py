@@ -1,8 +1,8 @@
 from __future__ import annotations
-from fastapi import HTTPException
 from pydantic import BaseModel
 
 from omnidemo.api.insights import router
+from omnidemo.db import SqliteDatabase
 from fastapi import Request
 
 
@@ -19,9 +19,8 @@ class ListInsightsResponse(BaseModel):
 
 @router.get("/insights/list-insights")
 async def list_insights(request: Request) -> ListInsightsResponse:
-    db = request.app.state.db
-    if db is None:
-        raise HTTPException(status_code=500, detail="Database not connected")
-    data = db.table("insights").select("*").execute()
-
-    return ListInsightsResponse(insights=data.data)
+    db = SqliteDatabase.from_app(request.app)
+    data = db.fetch_rows("SELECT * FROM insights")
+    return ListInsightsResponse(
+        insights=[Insight.model_validate(row) for row in data],
+    )

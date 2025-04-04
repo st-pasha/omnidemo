@@ -11,5 +11,8 @@
     "**/.mypy_cache/**": true,
     "**/.ruff_cache": true,
     "**/.ruff_cache/**": true
-  }
+  },
+  "python.analysis.stubPath": "backend/typings",
+
+  "python.analysis.typeCheckingMode": "strict"
 }

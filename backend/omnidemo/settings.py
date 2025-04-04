@@ -32,8 +32,8 @@ class Settings(BaseSettings):
 
     host: str = "0.0.0.0"
     port: int = 8000
-    # quantity of workers for uvicorn
-    workers_count: int = 1
+    # number of workers for uvicorn
+    workers_count: int = 2
     # Enable uvicorn reloading
     reload: bool = False
 
@@ -48,8 +48,9 @@ class Settings(BaseSettings):
     )
 
     project_root: Path = Path(__file__).parent.parent.parent
-    supabase_url: str = read_env(project_root, "SUPABASE_URL")
-    supabase_key: str = read_env(project_root, "SUPABASE_KEY")
+    sqlite_db: Path = project_root / "backend" / "db" / "omnidemo.db"
+    sqlite_sql: Path = project_root / "backend" / "db" / "initial.sql"
+    storage_dir: Path = project_root / "backend" / "db" / "storage"
 
 
 settings = Settings()

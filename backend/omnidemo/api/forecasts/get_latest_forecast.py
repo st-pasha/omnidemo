@@ -1,10 +1,11 @@
 from __future__ import annotations
-from typing import Literal
-from omnidemo.api.jobs.get_job import Job
+from fastapi import Request
 from pydantic import BaseModel
+from typing import Literal
 
 from omnidemo.api.forecasts import router
-from fastapi import Request
+from omnidemo.api.jobs.get_job import Job
+from omnidemo.db import SqliteDatabase
 
 
 class Forecast(BaseModel):
@@ -22,27 +23,26 @@ class GetForecastResponse(BaseModel):
 
 @router.get("/forecasts/get-latest-forecast")
 async def get_latest_forecast(request: Request) -> GetForecastResponse:
-    db = request.app.state.db
-    assert db is not None, "Database connection is not established"
+    db = SqliteDatabase.from_app(request.app)
 
     # Get the latest forecast
-    response = (
-        db.table("forecasts")
-        .select("*")
-        .order("created_at", desc=True)
-        .limit(1)
-        .execute()
-    )
-    if not response.data:
+    rows = db.fetch_rows("""
+        SELECT * FROM forecasts
+        ORDER BY created_at DESC LIMIT 1
+        """)
+    if not rows:
         return GetForecastResponse(forecast=None, job=None)
 
-    forecast = Forecast.model_validate(response.data[0])
+    forecast = Forecast.model_validate(rows[0])
     out = GetForecastResponse(forecast=forecast, job=None)
 
     # Get the job associated with the forecast
     if forecast.job_id:
-        response = db.table("jobs").select("*").eq("id", forecast.job_id).execute()
-        if response.data:
-            out.job = Job.model_validate(response.data[0])
+        rows = db.fetch_rows(
+            "SELECT * FROM jobs WHERE id = ?",
+            (forecast.job_id,),
+        )
+        if rows:
+            out.job = Job.model_validate(rows[0])
 
     return out

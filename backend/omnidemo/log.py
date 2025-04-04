@@ -60,5 +60,5 @@ def configure_logging() -> None:  # pragma: no cover
     logger.remove()
     logger.add(
         sys.stdout,
-        level=settings.log_level.value,
+        level=settings.log_level,
     )
